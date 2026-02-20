@@ -78,6 +78,12 @@
   <p>Gebruik als tag de datum van vandaag (YYYYMMDD):</p>
   <p><strong id="todayTag"></strong></p>
 
+  <p class="small" style="color:#b00020;">
+  Gebruik altijd een nieuwe datum.<br>
+  Krijgt u de melding dat de tag al bestaat?<br>
+  Voeg dan <strong>-1</strong>, <strong>-2</strong> etc. toe aan de datum.
+  </p>
+
   <a class="button" id="startBtn" target="_blank">
     START WKPB VERWERKING
   </a>
@@ -118,23 +124,56 @@ function formatDateYYYYMMDD() {
   return `${yyyy}${mm}${dd}`;
 }
 
-currentTag = formatDateYYYYMMDD();
-document.getElementById("todayTag").innerText = currentTag;
+async function findAvailableTag(baseTag) {
+
+  let attempt = 0;
+  let testTag = baseTag;
+
+  while (attempt < 10) {
+
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/releases/tags/${testTag}`
+    );
+
+    if (!response.ok) {
+      return testTag; // Tag is vrij
+    }
+
+    attempt++;
+    testTag = `${baseTag}-${attempt}`;
+  }
+
+  return baseTag + "-extra";
+}
+
+async function initializeTag() {
+  const baseTag = formatDateYYYYMMDD();
+  const availableTag = await findAvailableTag(baseTag);
+
+  currentTag = availableTag;
+  document.getElementById("todayTag").innerText = availableTag;
+
+  buildReleaseURL();
+}
+
+initializeTag();
 
 /* ===== Release URL genereren ===== */
 
-const releaseURL =
-  `https://github.com/${owner}/${repo}/releases/new` +
-  `?target=main` +
-  `&tag=${currentTag}` +
-  `&title=WKPB%20verwerking%20${currentTag}` +
-  `&body=1.%20Controleer%20dat%20de%20tag%20${currentTag}%20correct%20is.` +
-  `%0A2.%20Upload%202%20Excelbestanden.` +
-  `%0A3.%20Klik%20Publish%20release.` +
-  `%0A%0AGa%20daarna%20terug%20naar%20het%20dashboard.`;
+function buildReleaseURL() {
 
-document.getElementById("startBtn").href = releaseURL;
+  const releaseURL =
+    `https://github.com/${owner}/${repo}/releases/new` +
+    `?target=main` +
+    `&tag=${currentTag}` +
+    `&title=WKPB%20verwerking%20${currentTag}` +
+    `&body=1.%20Controleer%20dat%20de%20tag%20${currentTag}%20correct%20is.` +
+    `%0A2.%20Upload%202%20Excelbestanden.` +
+    `%0A3.%20Klik%20Publish%20release.` +
+    `%0A%0AGa%20daarna%20terug%20naar%20het%20dashboard.`;
 
+  document.getElementById("startBtn").href = releaseURL;
+}
 /* ===== Start verwerking ===== */
 
 document.getElementById("startBtn").addEventListener("click", function() {
