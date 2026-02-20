@@ -16,7 +16,7 @@ jobs:
         uses: dsaltares/fetch-gh-release-asset@master
         with:
           version: ${{ github.event.release.tag_name }}
-          pattern: "*.xlsx"
+          regex: ".*\\.xlsx"
           token: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Validate exactly two Excel files
