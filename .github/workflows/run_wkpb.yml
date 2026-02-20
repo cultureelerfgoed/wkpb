@@ -28,7 +28,7 @@ jobs:
             exit 1
           fi
 
-      # Sorteer en hernoem
+      # Sorteer en hernoem naar oud.xlsx en nieuw.xlsx
       - name: Sort and rename files
         run: |
           FILES=($(ls *.xlsx | sort))
