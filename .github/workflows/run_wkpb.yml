@@ -1,6 +1,5 @@
 name: WKPB Diff
 
-# Trigger wanneer bestaande release wordt aangepast
 on:
   release:
     types: [published]
@@ -12,12 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Download alle Excel-assets uit vaste release
+      # Download Excel-bestanden van de zojuist gepubliceerde release
       - name: Download Excel assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release download wkpb --pattern "*.xlsx" || true
+          gh release download ${{ github.event.release.tag_name }} --pattern "*.xlsx"
 
       # Controleer dat er precies 2 Excelbestanden zijn
       - name: Validate file count
@@ -29,7 +28,7 @@ jobs:
           if [ "$COUNT" -ne 2 ]; then
             DATUM=$(date +%Y%m%d)
 
-            gh release edit wkpb \
+            gh release edit ${{ github.event.release.tag_name }} \
               --title "WKPB MISLUKT $DATUM" \
               --notes "Verwerking mislukt. Upload exact 2 Excelbestanden (.xlsx). Huidig aantal: $COUNT"
 
@@ -59,7 +58,7 @@ jobs:
           if ! python wkpb_core.py; then
             DATUM=$(date +%Y%m%d)
 
-            gh release edit wkpb \
+            gh release edit ${{ github.event.release.tag_name }} \
               --title "WKPB MISLUKT $DATUM" \
               --notes "Verwerking mislukt tijdens validatie. Controleer kolommen."
 
@@ -71,15 +70,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload wkpb wkpb_werklijst_*.xlsx --clobber
+          gh release upload ${{ github.event.release.tag_name }} wkpb_werklijst_*.xlsx --clobber
 
       # Verwijder originele input
       - name: Delete input assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete-asset wkpb "$OLD_ASSET" --yes
-          gh release delete-asset wkpb "$NEW_ASSET" --yes
+          gh release delete-asset ${{ github.event.release.tag_name }} "$OLD_ASSET" --yes
+          gh release delete-asset ${{ github.event.release.tag_name }} "$NEW_ASSET" --yes
 
       # Succes-titel
       - name: Update success title
@@ -87,4 +86,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           DATUM=$(date +%Y%m%d)
-          gh release edit wkpb --title "WKPB werklijst $DATUM"
+          gh release edit ${{ github.event.release.tag_name }} \
+            --title "WKPB werklijst $DATUM"
