@@ -19,7 +19,7 @@
       background: white;
       padding: 30px;
       margin: 20px auto;
-      width: 420px;
+      width: 460px;
       border-radius: 14px;
       box-shadow: 0 6px 16px rgba(0,0,0,0.1);
     }
@@ -60,6 +60,12 @@
       100% { transform: rotate(360deg); }
     }
 
+    .small {
+      font-size: 14px;
+      color: #555;
+      margin-top: 10px;
+    }
+
   </style>
 </head>
 <body>
@@ -69,23 +75,70 @@
 
 <div class="card">
   <h2>Start nieuwe verwerking</h2>
-  <a class="button" id="startBtn" href="https://github.com/cultureelerfgoed/wkpb/releases/tag/wkpb" target="_blank">
+
+  <p>Gebruik als tag de datum van vandaag:</p>
+  <p><strong id="todayTag"></strong></p>
+
+  <a class="button" id="startBtn" target="_blank">
     START WKPB VERWERKING
   </a>
+
   <div class="spinner" id="spinner"></div>
+
+  <p class="small">
+    Na upload klikt u op <strong>Publish release</strong>.<br>
+    Ga daarna terug naar dit dashboard om te downloaden.
+  </p>
 </div>
 
 <div class="card">
   <h2>Laatste verwerking</h2>
   <div class="status" id="statusText">Status laden...</div>
-  <a class="button" href="https://github.com/cultureelerfgoed/wkpb/releases/latest" target="_blank">
-    Download laatste werklijst WKPB
+
+  <a class="button"
+     href="https://github.com/cultureelerfgoed/wkpb/releases/latest"
+     target="_blank">
+    Download laatste werklijst
   </a>
 </div>
 
 <script>
 const owner = "cultureelerfgoed";
 const repo = "wkpb";
+
+/* ===== Datum genereren ===== */
+
+function formatDateYYYYMMDD() {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  return `${yyyy}${mm}${dd}`;
+}
+
+const todayTag = formatDateYYYYMMDD();
+document.getElementById("todayTag").innerText = todayTag;
+
+/* ===== Release URL automatisch genereren ===== */
+
+const releaseURL =
+  `https://github.com/${owner}/${repo}/releases/new` +
+  `?tag=${todayTag}` +
+  `&title=WKPB%20verwerking%20${todayTag}` +
+  `&body=1.%20Controleer%20dat%20de%20tag%20${todayTag}%20correct%20is.` +
+  `%0A2.%20Upload%202%20Excelbestanden.` +
+  `%0A3.%20Klik%20Publish%20release.` +
+  `%0A%0AGa%20daarna%20terug%20naar%20het%20dashboard.`;
+
+document.getElementById("startBtn").href = releaseURL;
+
+/* ===== Spinner bij klik ===== */
+
+document.getElementById("startBtn").addEventListener("click", function() {
+  document.getElementById("spinner").style.display = "block";
+});
+
+/* ===== Status ophalen via GitHub API ===== */
 
 async function fetchStatus() {
   try {
@@ -94,19 +147,21 @@ async function fetchStatus() {
 
     const title = data.name || data.tag_name;
 
+    if (!title) {
+      document.getElementById("statusText").innerHTML = "Nog geen verwerking uitgevoerd.";
+      return;
+    }
+
     if (title.includes("MISLUKT")) {
       document.getElementById("statusText").innerHTML = "🔴 Laatste verwerking mislukt";
     } else {
       document.getElementById("statusText").innerHTML = "🟢 Laatste verwerking geslaagd";
     }
+
   } catch (error) {
     document.getElementById("statusText").innerHTML = "⚠️ Status niet beschikbaar";
   }
 }
-
-document.getElementById("startBtn").addEventListener("click", function() {
-  document.getElementById("spinner").style.display = "block";
-});
 
 fetchStatus();
 </script>

@@ -3,7 +3,7 @@ name: WKPB Diff
 # Trigger wanneer bestaande release wordt aangepast
 on:
   release:
-    types: [edited]
+    types: [published]
 
 jobs:
   run-wkpb:
