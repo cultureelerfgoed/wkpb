@@ -1,72 +1,69 @@
 <!DOCTYPE html>
-<html>
+<html lang="nl">
 <head>
-  <meta charset="UTF-8">
-  <title>WKPB Control Center</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f6f8;
-      text-align: center;
-      padding: 40px;
-    }
+<meta charset="UTF-8">
+<title>WKPB Control Center</title>
 
-    h1 {
-      margin-bottom: 10px;
-    }
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+  text-align: center;
+  padding: 40px;
+}
 
-    .card {
-      background: white;
-      padding: 30px;
-      margin: 20px auto;
-      width: 460px;
-      border-radius: 14px;
-      box-shadow: 0 6px 16px rgba(0,0,0,0.1);
-    }
+.card {
+  background: white;
+  padding: 30px;
+  margin: 20px auto;
+  width: 460px;
+  border-radius: 14px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+}
 
-    .button {
-      display: inline-block;
-      padding: 14px 26px;
-      background: #2d7ff9;
-      color: white;
-      text-decoration: none;
-      border-radius: 8px;
-      font-weight: bold;
-      margin-top: 15px;
-    }
+.button {
+  display: inline-block;
+  padding: 14px 26px;
+  background: #1f5fbf;
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: bold;
+  margin-top: 15px;
+}
 
-    .button:hover {
-      background: #1c63d6;
-    }
+.button:hover {
+  background: #164a94;
+}
 
-    .status {
-      font-size: 18px;
-      margin-top: 10px;
-    }
+.status {
+  font-size: 18px;
+  margin-top: 10px;
+}
 
-    .spinner {
-      margin: 20px auto;
-      width: 40px;
-      height: 40px;
-      border: 5px solid #ddd;
-      border-top: 5px solid #2d7ff9;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      display: none;
-    }
+.spinner {
+  margin: 20px auto;
+  width: 40px;
+  height: 40px;
+  border: 5px solid #ddd;
+  border-top: 5px solid #1f5fbf;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: none;
+}
 
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 
-    .small {
-      font-size: 14px;
-      color: #555;
-      margin-top: 10px;
-    }
-  </style>
+.small {
+  font-size: 14px;
+  margin-top: 10px;
+}
+</style>
 </head>
+
 <body>
 
 <h1>WKPB Control Center</h1>
@@ -75,34 +72,34 @@
 <div class="card">
   <h2>Start nieuwe verwerking</h2>
 
-  <p>Gebruik als tag de datum van vandaag (YYYYMMDD):</p>
+  <p>Voorgestelde tag:</p>
   <p><strong id="todayTag"></strong></p>
 
-  <p class="small" style="color:#b00020;">
-  Gebruik altijd een nieuwe datum.<br>
-  Krijgt u de melding dat de tag al bestaat?<br>
-  Voeg dan <strong>-1</strong>, <strong>-2</strong> etc. toe aan de datum.
-  </p>
-
-  <a class="button" id="startBtn" target="_blank">
+  <a class="button"
+     id="startBtn"
+     target="_blank"
+     rel="noopener noreferrer"
+     aria-label="Start nieuwe WKPB verwerking">
     START WKPB VERWERKING
   </a>
 
-  <div class="spinner" id="spinner"></div>
+  <div class="spinner" id="spinner" role="status" aria-live="polite"></div>
 
   <p class="small">
-    Na upload klikt u op <strong>Publish release</strong>.<br>
-    Ga daarna terug naar dit dashboard voor download.
+    Gebruik altijd een nieuwe tag.<br>
+    Meerdere runs per dag krijgen automatisch een -1, -2 etc.
   </p>
 </div>
 
 <div class="card">
   <h2>Laatste verwerking</h2>
-  <div class="status" id="statusText">Status laden...</div>
+  <div class="status" id="statusText" aria-live="polite">Status laden...</div>
 
   <a class="button"
      href="https://github.com/cultureelerfgoed/wkpb/releases/latest"
-     target="_blank">
+     target="_blank"
+     rel="noopener noreferrer"
+     aria-label="Download laatste werklijst">
     Download laatste werklijst
   </a>
 </div>
@@ -112,149 +109,146 @@ const owner = "cultureelerfgoed";
 const repo = "wkpb";
 
 let pollingInterval = null;
+let pollingStartTime = null;
 let currentTag = null;
 
-/* ===== Datum genereren ===== */
-
+/* ===== Datum ===== */
 function formatDateYYYYMMDD() {
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
-  return `${yyyy}${mm}${dd}`;
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
 }
 
+/* ===== Tag bepalen (max 50 pogingen) ===== */
 async function findAvailableTag(baseTag) {
-
-  let attempt = 0;
-  let testTag = baseTag;
-
-  while (attempt < 10) {
+  for (let i = 0; i < 50; i++) {
+    const testTag = i === 0 ? baseTag : `${baseTag}-${i}`;
 
     const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/releases/tags/${testTag}`
+      `https://api.github.com/repos/${owner}/${repo}/releases/tags/${encodeURIComponent(testTag)}`
     );
 
     if (!response.ok) {
-      return testTag; // Tag is vrij
+      return testTag;
     }
-
-    attempt++;
-    testTag = `${baseTag}-${attempt}`;
   }
 
+  document.getElementById("statusText").innerText =
+    "⚠️ Geen vrije tag gevonden na 50 pogingen.";
   return baseTag + "-extra";
 }
 
 async function initializeTag() {
-  const baseTag = formatDateYYYYMMDD();
-  const availableTag = await findAvailableTag(baseTag);
-
-  currentTag = availableTag;
-  document.getElementById("todayTag").innerText = availableTag;
-
+  const base = formatDateYYYYMMDD();
+  currentTag = await findAvailableTag(base);
+  document.getElementById("todayTag").innerText = currentTag;
   buildReleaseURL();
 }
 
-initializeTag();
-
-/* ===== Release URL genereren ===== */
-
 function buildReleaseURL() {
+  const title = `WKPB verwerking ${currentTag}`;
+  const body =
+    `Controleer tag ${currentTag}\nUpload 2 Excelbestanden\nKlik Publish release\nGa daarna terug naar dashboard`;
 
-  const releaseURL =
+  const url =
     `https://github.com/${owner}/${repo}/releases/new` +
     `?target=main` +
-    `&tag=${currentTag}` +
-    `&title=WKPB%20verwerking%20${currentTag}` +
-    `&body=1.%20Controleer%20dat%20de%20tag%20${currentTag}%20correct%20is.` +
-    `%0A2.%20Upload%202%20Excelbestanden.` +
-    `%0A3.%20Klik%20Publish%20release.` +
-    `%0A%0AGa%20daarna%20terug%20naar%20het%20dashboard.`;
+    `&tag=${encodeURIComponent(currentTag)}` +
+    `&title=${encodeURIComponent(title)}` +
+    `&body=${encodeURIComponent(body)}`;
 
-  document.getElementById("startBtn").href = releaseURL;
+  document.getElementById("startBtn").href = url;
 }
-/* ===== Start verwerking ===== */
 
-document.getElementById("startBtn").addEventListener("click", function() {
+/* ===== Polling ===== */
+function startPolling() {
+  pollingStartTime = Date.now();
+
+  pollingInterval = setInterval(async () => {
+
+    if (Date.now() - pollingStartTime > 300000) {
+      clearInterval(pollingInterval);
+      document.getElementById("spinner").style.display = "none";
+      document.getElementById("statusText").innerText =
+        "⚠️ Verwerking duurt langer dan verwacht.";
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/releases/tags/${encodeURIComponent(currentTag)}`
+      );
+
+      if (!response.ok) return;
+
+      const data = await response.json();
+      const title = (data.name || data.tag_name || "").toLowerCase();
+
+      if (title.includes("mislukt")) {
+        clearInterval(pollingInterval);
+        document.getElementById("spinner").style.display = "none";
+        document.getElementById("statusText").innerText =
+          "🔴 Verwerking mislukt.";
+        return;
+      }
+
+      const success = data.assets.some(a =>
+        a.name.startsWith("wkpb_werklijst_")
+      );
+
+      if (success) {
+        clearInterval(pollingInterval);
+        document.getElementById("spinner").style.display = "none";
+        document.getElementById("statusText").innerText =
+          "🟢 Verwerking voltooid.";
+      }
+
+    } catch (err) {
+      document.getElementById("statusText").innerText =
+        "⚠️ Netwerkfout bij statuscontrole.";
+    }
+
+  }, 5000);
+}
+
+document.getElementById("startBtn").addEventListener("click", () => {
   document.getElementById("spinner").style.display = "block";
-  document.getElementById("statusText").innerHTML = "⏳ Verwerking gestart...";
-
+  document.getElementById("statusText").innerText = "⏳ Verwerking gestart...";
   startPolling();
 });
 
-/* ===== Polling starten ===== */
-
-function startPolling() {
-  if (pollingInterval) clearInterval(pollingInterval);
-  pollingInterval = setInterval(checkReleaseStatus, 5000);
-}
-
-/* ===== Release status controleren ===== */
-
-async function checkReleaseStatus() {
-  try {
-    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/tags/${currentTag}`);
-
-    if (!response.ok) {
-      return; // Release nog niet gepubliceerd
-    }
-
-    const data = await response.json();
-
-    const title = data.name || data.tag_name;
-
-    /* --- Foutdetectie --- */
-    if (title.includes("MISLUKT")) {
-      clearInterval(pollingInterval);
-      document.getElementById("spinner").style.display = "none";
-      document.getElementById("statusText").innerHTML = "🔴 Verwerking mislukt. Controleer de release.";
-      return;
-    }
-
-    /* --- Succesdetectie --- */
-    const hasResultFile = data.assets.some(asset =>
-      asset.name.startsWith("wkpb_werklijst_")
-    );
-
-    if (hasResultFile) {
-      clearInterval(pollingInterval);
-      document.getElementById("spinner").style.display = "none";
-      document.getElementById("statusText").innerHTML = "🟢 Verwerking voltooid. U kunt nu downloaden.";
-      return;
-    }
-
-  } catch (error) {
-    console.log("Polling fout:", error);
-  }
-}
-
-/* ===== Laatste verwerking bij laden tonen ===== */
-
+/* ===== Laatste status bij laden ===== */
 async function fetchLatestStatus() {
   try {
-    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`);
-    const data = await response.json();
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/releases/latest`
+    );
 
-    if (!data.tag_name) {
-      document.getElementById("statusText").innerHTML = "Nog geen verwerking uitgevoerd.";
+    if (!response.ok) {
+      document.getElementById("statusText").innerText =
+        "Nog geen verwerking uitgevoerd.";
       return;
     }
 
-    const title = data.name || data.tag_name;
+    const data = await response.json();
+    const title = (data.name || data.tag_name || "").toLowerCase();
 
-    if (title.includes("MISLUKT")) {
-      document.getElementById("statusText").innerHTML = "🔴 Laatste verwerking mislukt";
+    if (title.includes("mislukt")) {
+      document.getElementById("statusText").innerText =
+        "🔴 Laatste verwerking mislukt";
     } else {
-      document.getElementById("statusText").innerHTML = "🟢 Laatste verwerking geslaagd";
+      document.getElementById("statusText").innerText =
+        "🟢 Laatste verwerking geslaagd";
     }
 
-  } catch (error) {
-    document.getElementById("statusText").innerHTML = "⚠️ Status niet beschikbaar";
+  } catch {
+    document.getElementById("statusText").innerText =
+      "⚠️ Status niet beschikbaar.";
   }
 }
 
+initializeTag();
 fetchLatestStatus();
 </script>
+
 </body>
 </html>
