@@ -6,24 +6,27 @@ Wilt u een WKPB-werklijst genereren?
 
 1. Ga naar **Releases**
 2. Klik op **Draft a new release**
-3. Upload precies 2 Excelbestanden (oude en nieuwe export)
+3. Upload precies 2 Excelbestanden (.xlsx)
 4. Klik op **Publish release**
-5. Wacht ±1 minuut
+5. Wacht ± 1 minuut
 6. Download `wkpb_werklijst_YYYYMMDD.xlsx`
 
-De twee geüploade bestanden worden automatisch verwijderd.
-Er blijft alleen het resultaatbestand over.
+Bij fouten wordt de release automatisch gemarkeerd als **MISLUKT** met uitleg.
 
-Geen installatie. Geen macro’s. Geen handmatige diff.
+U hoeft niets te installeren.
 
 ---
 
 # Doel
 
-Deze repository berekent automatisch een WKPB-werklijst door twee Kadaster-exportbestanden met elkaar te vergelijken.
+Deze repository genereert automatisch een WKPB-werklijst door twee Kadaster-exportbestanden met elkaar te vergelijken.
 
-Alles draait via GitHub Actions.
-U hoeft niets te installeren.
+De verwerking draait volledig via GitHub Actions.
+
+- Geen installatie
+- Geen Python lokaal nodig
+- Geen macro’s
+- Geen handmatige diff
 
 ---
 
@@ -31,14 +34,16 @@ U hoeft niets te installeren.
 
 Het systeem:
 
-1. Leest het oude Excelbestand
-2. Leest het nieuwe Excelbestand
-3. Telt per identificatie het aantal actieve BRK-objecten
-4. Selecteert identificaties waarvoor geldt:
+1. Downloadt de twee geüploade Excelbestanden
+2. Sorteert ze op naam (datum/tijd vooraan)
+3. Bepaalt automatisch:
+   - oudste bestand → oud.xlsx
+   - nieuwste bestand → nieuw.xlsx
+4. Telt per identificatie het aantal actieve BRK-objecten
+5. Selecteert identificaties waarvoor geldt:
    - oud_actief = 0
    - nieuw_actief > 0
-5. Neemt het eerste record uit het nieuwe bestand
-6. Schrijft een Excelbestand met drie tabbladen
+6. Genereert een Excelbestand met drie tabbladen
 
 De output heet:
 
@@ -58,9 +63,8 @@ wkpb_werklijst_YYYYMMDD.xlsx
 ## Stap 2 – Maak een nieuwe Release
 
 1. Klik op **Draft a new release**
-2. Vul een tag in, bijvoorbeeld:
-   v2026-02-20
-3. Titel mag hetzelfde zijn als de tag
+2. Vul een tag in (bijvoorbeeld: v2026-02-20)
+3. Titel mag leeg blijven (wordt automatisch aangepast)
 
 ---
 
@@ -77,58 +81,131 @@ Voorbeeld bestandsnaam:
 
 Belangrijk:
 
-- De naam mag blijven zoals hij is
-- Het systeem bepaalt automatisch welk bestand oud en nieuw is
-- Dit gebeurt op basis van de datum/tijd aan het begin van de bestandsnaam
-- Upload precies 2 .xlsx bestanden
+- Upload exact 2 .xlsx bestanden
+- Geen extra bestanden
+- Bestandsnamen mogen blijven zoals ze zijn
 
-Als dit niet klopt, stopt de verwerking.
+Het systeem bepaalt zelf welk bestand oud en nieuw is op basis van de naam.
 
 ---
 
-## Stap 4 – Publiceer de Release
-
-Klik op **Publish release**.
+## Stap 4 – Klik op Publish release
 
 De verwerking start automatisch.
 
 ---
 
-## Stap 5 – Wacht tot de verwerking klaar is
+## Stap 5 – Controleer de status
 
-1. Ga naar tab **Actions**
-2. Open de meest recente workflow
-3. Wacht tot alles groen is
+Ga naar het tabblad **Actions** om de voortgang te bekijken.
 
-Dit duurt meestal minder dan 1 minuut.
+Na succesvolle verwerking:
 
----
+- De releasetitel wordt automatisch aangepast naar:
 
-## Stap 6 – Download het resultaat
+  WKPB werklijst YYYYMMDD
 
-Ga terug naar **Releases**.
-
-Download:
-
-wkpb_werklijst_YYYYMMDD.xlsx
-
-De twee oorspronkelijke Excelbestanden zijn automatisch verwijderd.
+- Alleen het resultaatbestand blijft zichtbaar bij Assets.
 
 ---
 
-# Inhoud van het resultaatbestand
+# Resultaatbestand
 
 Het Excelbestand bevat drie tabbladen:
 
-1. WKPB Lijst
-2. Samenvatting
-3. Audit verschil
+## 1. WKPB Lijst
+De geselecteerde identificaties.
+
+Kolommen:
+
+- identificatie
+- monumentnummer
+- register
+- kenmerk
+- kadastraleGemeenteBRK
+- sectieBRK
+- perceelnummerBRK
+- Wijzigingstype
+
+## 2. Samenvatting
+Aantal gewijzigde objecten.
+
+## 3. Audit verschil
+Per identificatie:
+
+- oud_actief
+- nieuw_actief
+- reden: nieuw actief BRK-object
+
+---
+
+# Wanneer komt een object in de werklijst?
+
+Een identificatie wordt opgenomen wanneer:
+
+- In het oude bestand geen actief BRK-object aanwezig is
+- In het nieuwe bestand één of meer actieve BRK-objecten aanwezig zijn
+
+Actief betekent dat de kolom:
+
+indicatieObjectVervallenBRK
+
+de waarde bevat:
+
+- WAAR
+- TRUE
+- 1
+
+Hoofdlettergebruik maakt niet uit.
+
+---
+
+# Validatie en foutafhandeling
+
+## Fout: niet precies 2 Excelbestanden
+
+Als er minder of meer dan 2 bestanden zijn:
+
+- De workflow stopt
+- De releasetitel wordt aangepast naar:
+
+  WKPB MISLUKT YYYYMMDD
+
+- De release krijgt een foutmelding met uitleg
+
+Maak daarna een nieuwe release met precies 2 bestanden.
+
+---
+
+## Fout: ontbrekende kolommen of ongeldig bestand
+
+Als vereiste kolommen ontbreken of het bestand ongeldig is:
+
+- De workflow stopt
+- De releasetitel wordt aangepast naar:
+
+  WKPB MISLUKT YYYYMMDD
+
+- De release bevat uitleg
+
+Controleer de bestandsstructuur en maak daarna een nieuwe release.
+
+---
+
+# Wat gebeurt er met de geüploade bestanden?
+
+Na succesvolle verwerking:
+
+- De twee oorspronkelijke Excelbestanden worden automatisch uit de release verwijderd
+- Alleen het resultaatbestand blijft zichtbaar
+
+Er blijven geen inputbestanden permanent in de repository staan.
 
 ---
 
 # Vereiste kolommen in beide Excelbestanden
 
-De volgende kolommen moeten aanwezig zijn:
+Beide bestanden moeten minimaal deze kolommen bevatten:
 
 - identificatie
 - indicatieObjectVervallenBRK
@@ -139,78 +216,32 @@ De volgende kolommen moeten aanwezig zijn:
 - sectieBRK
 - perceelnummerBRK
 
-Ontbreekt een kolom, dan stopt de workflow.
-
----
-
-# Wanneer is een object actief?
-
-Een record geldt als actief wanneer:
-
-indicatieObjectVervallenBRK
-
-de waarde heeft:
-
-- WAAR
-- TRUE
-- 1
-
-Hoofdletters maken niet uit.
-
----
-
-# Wat gebeurt er met de geüploade bestanden?
-
-Na verwerking:
-
-- Worden de twee inputbestanden automatisch verwijderd uit de Release
-- Blijft alleen het resultaatbestand zichtbaar
-
-De bestanden blijven niet permanent in de repository staan.
-
----
-
-# Wat als er iets misgaat?
-
-Ga naar:
-
-Actions → laatste run
-
-Bekijk de foutmelding in de log.
-
-Veelvoorkomende oorzaken:
-
-- Niet precies 2 Excelbestanden geüpload
-- Onjuiste kolomnamen
-- Bestand is geen geldig .xlsx bestand
-
-Maak daarna een nieuwe Release en probeer opnieuw.
+Ontbreekt een kolom, dan stopt de verwerking.
 
 ---
 
 # Voor beheerders
 
-Belangrijke bestanden:
+Belangrijke bestanden in deze repository:
 
-wkpb_core.py  
 .github/workflows/run_wkpb.yml  
+wkpb_core.py  
 requirements.txt  
-
-Trigger:
-
-release → published
 
 De workflow:
 
-1. Downloadt beide Excelbestanden
-2. Sorteert ze op naam
-3. Hernoemt naar oud.xlsx en nieuw.xlsx
+1. Downloadt release-assets
+2. Valideert aantal bestanden
+3. Sorteert en hernoemt
 4. Draait het Python-script
-5. Uploadt de output
-6. Verwijdert de oorspronkelijke inputbestanden
+5. Uploadt resultaat
+6. Verwijdert inputbestanden
+7. Past releasetitel automatisch aan
 
 ---
 
-## TL;DR (kort)
+## TL;DR (nogmaals)
 
-Draft release → Upload 2 bestanden → Publish → Download resultaat.
+Draft release → Upload 2 Excelbestanden → Publish → Download resultaat.
+
+Klaar.

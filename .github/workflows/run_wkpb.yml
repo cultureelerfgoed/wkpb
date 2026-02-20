@@ -1,5 +1,6 @@
 name: WKPB Diff
 
+# Start workflow automatisch zodra een release wordt gepubliceerd
 on:
   release:
     types: [published]
@@ -9,64 +10,87 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      # Haal repository op
+      - uses: actions/checkout@v4
 
-      # Download alle Excel-assets van deze release
+      # Download alle .xlsx bestanden uit de release
       - name: Download release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release download ${{ github.event.release.tag_name }} --pattern "*.xlsx"
+          gh release download ${{ github.event.release.tag_name }} --pattern "*.xlsx" || true
 
-      # Controleer dat er precies 2 Excelbestanden zijn
+      # Controleer dat er precies 2 Excelbestanden zijn geüpload
       - name: Validate exactly two Excel files
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           COUNT=$(ls *.xlsx 2>/dev/null | wc -l)
+
           if [ "$COUNT" -ne 2 ]; then
-            echo "Er moeten precies 2 Excelbestanden in de release zitten."
+            DATUM=$(date +%Y%m%d)
+
+            gh release edit ${{ github.event.release.tag_name }} \
+              --title "WKPB MISLUKT $DATUM" \
+              --notes "Verwerking mislukt. Er moeten precies 2 Excelbestanden (.xlsx) worden geüpload. Huidig aantal: $COUNT"
+
             exit 1
           fi
 
-      # Sorteer en hernoem naar oud.xlsx en nieuw.xlsx
+      # Sorteer bestanden op naam (YYYYMMDD HHMM ...) en hernoem naar oud.xlsx / nieuw.xlsx
       - name: Sort and rename files
         run: |
           FILES=($(ls *.xlsx | sort))
-          echo "Oud bestand: ${FILES[0]}"
-          echo "Nieuw bestand: ${FILES[1]}"
 
-          # Bewaar originele namen voor delete-stap
           echo "OLD_ASSET=${FILES[0]}" >> $GITHUB_ENV
           echo "NEW_ASSET=${FILES[1]}" >> $GITHUB_ENV
 
           mv "${FILES[0]}" oud.xlsx
           mv "${FILES[1]}" nieuw.xlsx
 
-      # Python installeren
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      # Installeer Python
+      - uses: actions/setup-python@v5
         with:
           python-version: 3.11
 
-      # Dependencies installeren
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      # Installeer dependencies
+      - run: pip install -r requirements.txt
 
-      # WKPB script uitvoeren
+      # Voer WKPB script uit met foutafhandeling
       - name: Run WKPB script
-        run: python wkpb_core.py
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! python wkpb_core.py; then
+            DATUM=$(date +%Y%m%d)
 
-      # Resultaat uploaden naar dezelfde release
+            gh release edit ${{ github.event.release.tag_name }} \
+              --title "WKPB MISLUKT $DATUM" \
+              --notes "Verwerking mislukt tijdens Python-validatie. Controleer kolommen en bestandsstructuur."
+
+            exit 1
+          fi
+
+      # Upload gegenereerd resultaat naar dezelfde release
       - name: Upload result to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload ${{ github.event.release.tag_name }} wkpb_werklijst_*.xlsx --clobber
 
-      # Originele input-assets verwijderen
-      - name: Delete input assets from release
+      # Verwijder originele inputbestanden uit de release
+      - name: Delete input assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete-asset ${{ github.event.release.tag_name }} "$OLD_ASSET" --yes
           gh release delete-asset ${{ github.event.release.tag_name }} "$NEW_ASSET" --yes
+
+      # Pas titel aan bij succesvolle verwerking
+      - name: Update release title on success
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATUM=$(date +%Y%m%d)
+          gh release edit ${{ github.event.release.tag_name }} \
+            --title "WKPB werklijst $DATUM"

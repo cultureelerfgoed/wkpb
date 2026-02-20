@@ -1,7 +1,6 @@
 import pandas as pd
 from datetime import datetime
 import sys
-import os
 
 WKPB_KOLOMMEN = [
     "identificatie", "monumentnummer", "register", "kenmerk",
@@ -9,6 +8,14 @@ WKPB_KOLOMMEN = [
 ]
 
 ACTIEF_KOLOM = "indicatieObjectVervallenBRK"
+
+
+def controleer_kolommen(df):
+    vereiste = WKPB_KOLOMMEN + [ACTIEF_KOLOM]
+    ontbrekend = [k for k in vereiste if k not in df.columns]
+    if ontbrekend:
+        print(f"Ontbrekende kolommen: {', '.join(ontbrekend)}")
+        sys.exit(1)
 
 
 def is_actief(waarde):
@@ -26,11 +33,11 @@ def actieve_telling(df):
 
 
 def main():
-    oud_bestand = "oud.xlsx"
-    nieuw_bestand = "nieuw.xlsx"
+    df_oud = pd.read_excel("oud.xlsx")
+    df_nieuw = pd.read_excel("nieuw.xlsx")
 
-    df_oud = pd.read_excel(oud_bestand)
-    df_nieuw = pd.read_excel(nieuw_bestand)
+    controleer_kolommen(df_oud)
+    controleer_kolommen(df_nieuw)
 
     oud_telling = actieve_telling(df_oud)
     nieuw_telling = actieve_telling(df_nieuw)
@@ -68,8 +75,6 @@ def main():
             "Aantal": [len(werklijst), len(werklijst)]
         }).to_excel(writer, sheet_name="Samenvatting", index=False)
         audit_df.to_excel(writer, sheet_name="Audit verschil", index=False)
-
-    print(f"Gegenereerd: {output}")
 
 
 if __name__ == "__main__":
