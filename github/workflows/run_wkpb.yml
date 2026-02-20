@@ -33,6 +33,12 @@ jobs:
           FILES=($(ls *.xlsx | sort))
           echo "Oud bestand: ${FILES[0]}"
           echo "Nieuw bestand: ${FILES[1]}"
+
+          # Onthoud originele namen voor delete-stap
+          echo "OLD_ASSET=${FILES[0]}" >> $GITHUB_ENV
+          echo "NEW_ASSET=${FILES[1]}" >> $GITHUB_ENV
+
+          # Hernoem voor het script
           mv "${FILES[0]}" oud.xlsx
           mv "${FILES[1]}" nieuw.xlsx
 
@@ -58,4 +64,5 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.event.release.tag_name }}
           assets: |
-            *.xlsx
+            ${{ env.OLD_ASSET }}
+            ${{ env.NEW_ASSET }}
