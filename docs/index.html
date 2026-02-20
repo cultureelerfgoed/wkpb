@@ -105,6 +105,9 @@
 const owner = "cultureelerfgoed";
 const repo = "wkpb";
 
+let pollingInterval = null;
+let currentTag = null;
+
 /* ===== Datum genereren ===== */
 
 function formatDateYYYYMMDD() {
@@ -115,32 +118,81 @@ function formatDateYYYYMMDD() {
   return `${yyyy}${mm}${dd}`;
 }
 
-const todayTag = formatDateYYYYMMDD();
-document.getElementById("todayTag").innerText = todayTag;
+currentTag = formatDateYYYYMMDD();
+document.getElementById("todayTag").innerText = currentTag;
 
 /* ===== Release URL genereren ===== */
 
 const releaseURL =
   `https://github.com/${owner}/${repo}/releases/new` +
   `?target=main` +
-  `&tag=${todayTag}` +
-  `&title=WKPB%20verwerking%20${todayTag}` +
-  `&body=1.%20Controleer%20dat%20de%20tag%20${todayTag}%20correct%20is.` +
+  `&tag=${currentTag}` +
+  `&title=WKPB%20verwerking%20${currentTag}` +
+  `&body=1.%20Controleer%20dat%20de%20tag%20${currentTag}%20correct%20is.` +
   `%0A2.%20Upload%202%20Excelbestanden.` +
   `%0A3.%20Klik%20Publish%20release.` +
   `%0A%0AGa%20daarna%20terug%20naar%20het%20dashboard.`;
 
 document.getElementById("startBtn").href = releaseURL;
 
-/* ===== Spinner bij klik ===== */
+/* ===== Start verwerking ===== */
 
 document.getElementById("startBtn").addEventListener("click", function() {
   document.getElementById("spinner").style.display = "block";
+  document.getElementById("statusText").innerHTML = "⏳ Verwerking gestart...";
+
+  startPolling();
 });
 
-/* ===== Status ophalen via GitHub API ===== */
+/* ===== Polling starten ===== */
 
-async function fetchStatus() {
+function startPolling() {
+  if (pollingInterval) clearInterval(pollingInterval);
+  pollingInterval = setInterval(checkReleaseStatus, 5000);
+}
+
+/* ===== Release status controleren ===== */
+
+async function checkReleaseStatus() {
+  try {
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/tags/${currentTag}`);
+
+    if (!response.ok) {
+      return; // Release nog niet gepubliceerd
+    }
+
+    const data = await response.json();
+
+    const title = data.name || data.tag_name;
+
+    /* --- Foutdetectie --- */
+    if (title.includes("MISLUKT")) {
+      clearInterval(pollingInterval);
+      document.getElementById("spinner").style.display = "none";
+      document.getElementById("statusText").innerHTML = "🔴 Verwerking mislukt. Controleer de release.";
+      return;
+    }
+
+    /* --- Succesdetectie --- */
+    const hasResultFile = data.assets.some(asset =>
+      asset.name.startsWith("wkpb_werklijst_")
+    );
+
+    if (hasResultFile) {
+      clearInterval(pollingInterval);
+      document.getElementById("spinner").style.display = "none";
+      document.getElementById("statusText").innerHTML = "🟢 Verwerking voltooid. U kunt nu downloaden.";
+      return;
+    }
+
+  } catch (error) {
+    console.log("Polling fout:", error);
+  }
+}
+
+/* ===== Laatste verwerking bij laden tonen ===== */
+
+async function fetchLatestStatus() {
   try {
     const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`);
     const data = await response.json();
@@ -163,8 +215,7 @@ async function fetchStatus() {
   }
 }
 
-fetchStatus();
+fetchLatestStatus();
 </script>
-
 </body>
 </html>
