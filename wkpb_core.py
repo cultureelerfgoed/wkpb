@@ -28,7 +28,8 @@ def is_actief(waarde):
     if pd.isna(waarde):
         return False
     waarde = str(waarde).strip().upper()
-    return waarde in ["WAAR", "TRUE", "1"]
+    # Object is actief als het NIET vervallen is
+    return waarde in ["ONWAAR", "FALSE", "0"]
 
 
 def actieve_telling(df):
